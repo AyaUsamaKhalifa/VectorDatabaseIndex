@@ -1,5 +1,7 @@
 from typing import Dict, List, Annotated
 import numpy as np
+from hnsw import hnsw
+from ivf import ivf
 
 class VecDB:
     def __init__(self, file_path = "saved_db.csv", new_db = True) -> None:
