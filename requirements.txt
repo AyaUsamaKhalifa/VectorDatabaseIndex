@@ -1,5 +1,3 @@
 numpy
 typing
-sklearn.cluster
-scipy.spatial
-os
+sklearn

@@ -3,7 +3,6 @@
 import numpy as np
 import csv
 from sklearn.cluster import MiniBatchKMeans
-from scipy.spatial import distance
 import os
 
 
@@ -47,13 +46,13 @@ class ivf:
                 os.remove(os.path.join(path, file))
                 # print(f"Deleted file: {file}")
 
-    def build_index(self,file_path):
+    def build_index(self,path):
         # Initialize MiniBatchKMeans
         n_clusters = 5
         kmeans = MiniBatchKMeans(n_clusters=n_clusters, batch_size=5)
 
         # Open the file from which to load data
-        with open(file_path, 'r') as data_file:
+        with open(path, 'r') as data_file:
             while True:
                 batch_ids, batch_data = self.load_next_batch(data_file, 5)
                 if batch_data.size == 0:
@@ -72,7 +71,7 @@ class ivf:
         centroids = kmeans.cluster_centers_
 
         # Writing centroids to file
-        centroids_file_name = "centroids.csv"
+        centroids_file_name = path+"/centroids.csv"
         np.savetxt(centroids_file_name, centroids, delimiter=',')
 
         # # Output the centroids
@@ -92,7 +91,7 @@ class ivf:
                 points.append([float(x) for x in row])
         return points
 
-    def find_nearest_neighbors(self,query_point, centroids, k, n_centroids_to_consider=2):
+    def find_nearest_neighbors(self,path,query_point, centroids, k, n_centroids_to_consider=2):
         # Calculate distances to centroids and get indices of the nearest ones
         centroid_distances = self.calc_cosine_similarity([query_point], centroids)[0]
         # centroid_distances = distance.cdist([query_point], centroids, 'euclidean')[0]
@@ -101,7 +100,7 @@ class ivf:
         # Load points from nearest centroid files and calculate distances
         neighbor_candidates = []
         for idx in nearest_centroids_indices:
-            points = self.load_points_from_file(f"centroid_{idx}.csv")
+            points = self.load_points_from_file(path+f"/centroid_{idx}.csv")
             for point in points:
                 point_vector = np.array(point[1:])
                 dist = np.linalg.norm(np.array(point_vector) - np.array(query_point))
