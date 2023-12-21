@@ -1,8 +1,10 @@
+##IVF Class
+
 import numpy as np
 import csv
 from sklearn.cluster import MiniBatchKMeans
 from scipy.spatial import distance
-from sklearn.metrics.pairwise import cosine_similarity
+import os
 
 
 class ivf:
@@ -13,7 +15,7 @@ class ivf:
             line = file_handle.readline()
             if not line:
                 break
-            parts = line.strip().split(' ')
+            parts = line.strip().split(',')
             id_ = parts[0]
             vector = [float(x) for x in parts[1:]]
             batch_data.append(vector)
@@ -25,13 +27,33 @@ class ivf:
             writer = csv.writer(file)
             writer.writerow([id_] + data_point.tolist())
 
-    def build_index(self):
+    def calc_cosine_similarity(self,vector1, vector2):
+      dot_product = np.dot(vector1, vector2.T)
+      norm_vector1 = np.linalg.norm(vector1)
+      norm_vector2 = np.linalg.norm(vector2)
+      similarity = dot_product / (norm_vector1 * norm_vector2)
+      return similarity
+      # dot_product = np.dot(vector1, vector2)
+      # norm_vector1 = np.linalg.norm(vector1)
+      # norm_vector2 = np.linalg.norm(vector2)
+      # similarity = dot_product / (norm_vector1 * norm_vector2)
+      # return similarity
+
+    def cleanup(self):
+        # Get the list of all files and directories in the current working directory
+        path = '.'  # Current directory
+        for file in os.listdir(path):
+            if file.endswith('.csv'):
+                os.remove(os.path.join(path, file))
+                # print(f"Deleted file: {file}")
+
+    def build_index(self,file_path):
         # Initialize MiniBatchKMeans
         n_clusters = 5
         kmeans = MiniBatchKMeans(n_clusters=n_clusters, batch_size=5)
 
         # Open the file from which to load data
-        with open("dataset.txt", 'r') as data_file:
+        with open(file_path, 'r') as data_file:
             while True:
                 batch_ids, batch_data = self.load_next_batch(data_file, 5)
                 if batch_data.size == 0:
@@ -40,8 +62,8 @@ class ivf:
 
                 # Determine the nearest centroid for each point in the batch and save to the corresponding file
                 for id_, point in zip(batch_ids, batch_data):
-                    nearest_centroid_idx = np.argmin(distance.cdist([point], kmeans.cluster_centers_, 'euclidean'))
-                    # nearest_centroid_idx = np.argmax(cosine_similarity([point], kmeans.cluster_centers_))
+                    # nearest_centroid_idx = np.argmin(distance.cdist([point], kmeans.cluster_centers_, 'euclidean'))
+                    nearest_centroid_idx = np.argmax(self.calc_cosine_similarity([point], kmeans.cluster_centers_))
                     file_name = f"centroid_{nearest_centroid_idx}.csv"
                     self.append_to_file(file_name, id_, point)
 
@@ -53,9 +75,9 @@ class ivf:
         centroids_file_name = "centroids.csv"
         np.savetxt(centroids_file_name, centroids, delimiter=',')
 
-        # Output the centroids
-        print("Final centroids:")
-        print(centroids)
+        # # Output the centroids
+        # print("Final centroids:")
+        # print(centroids)
 
     # Loading centroids from file
     def load_centroids(self,filename):
@@ -72,8 +94,8 @@ class ivf:
 
     def find_nearest_neighbors(self,query_point, centroids, k, n_centroids_to_consider=2):
         # Calculate distances to centroids and get indices of the nearest ones
-        # centroid_distances = cosine_similarity([query_point], centroids)[0]
-        centroid_distances = distance.cdist([query_point], centroids, 'euclidean')[0]
+        centroid_distances = self.calc_cosine_similarity([query_point], centroids)[0]
+        # centroid_distances = distance.cdist([query_point], centroids, 'euclidean')[0]
         nearest_centroids_indices = np.argsort(centroid_distances)[:n_centroids_to_consider]
 
         # Load points from nearest centroid files and calculate distances
