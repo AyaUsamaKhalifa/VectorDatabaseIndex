@@ -66,11 +66,11 @@ class ivf:
             filename = f'cluster_{i}.csv'
 
             # Save the data points to the file
-            np.savetxt(path+"/"+filename, points_in_cluster, delimiter=',', fmt='%f')
+            np.savetxt(filename, points_in_cluster, delimiter=',', fmt='%f')
 
             print(f'Cluster {i} saved to {filename}')
 
-        centroids_file_name = path+"/centroids.csv"
+        centroids_file_name = path+"centroids.csv"
         np.savetxt(centroids_file_name, centroids, delimiter=',')
 
 
@@ -96,7 +96,7 @@ class ivf:
         # Load points from nearest centroid files and calculate distances
         neighbor_candidates = []
         for idx in nearest_centroids_indices:
-            points = self.load_points_from_file(path+f"/centroid_{idx}.csv")
+            points = self.load_points_from_file(path+f"cluster_{idx}.csv")
             for point in points:
                 point_vector = np.array(point[1:])
                 dist = np.linalg.norm(np.array(point_vector) - np.array(query_point))
