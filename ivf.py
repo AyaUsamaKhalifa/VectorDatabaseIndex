@@ -48,7 +48,7 @@ class ivf:
                 # print(f"Deleted file: {file}")
 
     def build_index(self,path,data):
-        num_clusters = 4
+        num_clusters = 100
         data_without_ids = np.array([d[1:] for d in data])
         # returns centroids and distortion
         centroids, _ = kmeans(data_without_ids, num_clusters)
@@ -63,7 +63,7 @@ class ivf:
             points_in_cluster = [d for j, d in enumerate(data) if cluster_indices[j] == i]
 
             # Define a filename for the cluster
-            filename = f'cluster_{i}.csv'
+            filename = path+f'cluster_{i}.csv'
 
             # Save the data points to the file
             np.savetxt(filename, points_in_cluster, delimiter=',', fmt='%f')
@@ -79,7 +79,7 @@ class ivf:
         centroids = np.loadtxt(filename, delimiter=',')
         return centroids
 
-    def load_points_from_file(seld,file_name):
+    def load_points_from_file(self,file_name):
         points = []
         with open(file_name, 'r') as file:
             reader = csv.reader(file)
