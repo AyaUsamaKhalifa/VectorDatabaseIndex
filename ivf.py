@@ -91,7 +91,7 @@ class ivf:
         # Calculate distances to centroids and get indices of the nearest ones
         centroid_distances = self.calc_cosine_similarity([query_point], centroids)[0]
         # centroid_distances = distance.cdist([query_point], centroids, 'euclidean')[0]
-        nearest_centroids_indices = np.argsort(centroid_distances)[:n_centroids_to_consider]
+        nearest_centroids_indices = np.argsort(centroid_distances)[-n_centroids_to_consider:]
 
         # Load points from nearest centroid files and calculate distances
         neighbor_candidates = []
