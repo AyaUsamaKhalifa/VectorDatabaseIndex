@@ -1,5 +1,6 @@
 from typing import Dict, List, Annotated
 import numpy as np
+from ivf import ivf
 
 class VecDB:
     def __init__(self, path = "db_10k", new_db = True) -> None:
