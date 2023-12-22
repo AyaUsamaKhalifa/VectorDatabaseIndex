@@ -1,9 +1,8 @@
 from typing import Dict, List, Annotated
 import numpy as np
-from ivf import ivf
 
 class VecDB:
-    def __init__(self, path = "saved_db.csv", new_db = True) -> None:
+    def __init__(self, path = "db_10k", new_db = True) -> None:
         self.path = path
         self.ivf_instance = ivf()
         if new_db:
@@ -13,13 +12,22 @@ class VecDB:
                 pass
     
     def insert_records(self, rows: List[Dict[int, Annotated[List[float], 70]]]):
-        with open(self.path+"/dataset.csv", "a+") as fout:
-            for row in rows:
-                id, embed = row["id"], row["embed"]
-                row_str = f"{id}," + ",".join([str(e) for e in embed])
-                fout.write(f"{row_str}\n")
+        # with open(self.path+"/dataset.csv", "a+") as fout:
+        #     for row in rows:
+        #         id, embed = row["id"], row["embed"]
+        #         row_str = f"{id}," + ",".join([str(e) for e in embed])
+        #         fout.write(f"{row_str}\n")
         # self.ivf_instance.cleanup()
-        self.ivf_instance.build_index(self.path)
+        modified_vectors = []
+
+        # Iterate over each row and modify the vector
+        for row in rows:
+            id, embed = row["id"], row["embed"]
+            # Prepend the id to the vector
+            modified_vector = [id] + embed
+            modified_vectors.append(modified_vector)
+            
+        self.ivf_instance.build_index(self.path,modified_vectors)
 
     def retrive(self, query: Annotated[List[float], 70], top_k = 5):
         centroids = self.ivf_instance.load_centroids(self.path+"/centroids.csv")

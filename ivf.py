@@ -4,6 +4,7 @@ import numpy as np
 import csv
 from sklearn.cluster import MiniBatchKMeans
 import os
+from scipy.cluster.vq import whiten, kmeans, vq, kmeans2
 
 
 class ivf:
@@ -46,37 +47,32 @@ class ivf:
                 os.remove(os.path.join(path, file))
                 # print(f"Deleted file: {file}")
 
-    def build_index(self,path):
-        # Initialize MiniBatchKMeans
-        n_clusters = 5
-        kmeans = MiniBatchKMeans(n_clusters=n_clusters, batch_size=5)
+    def build_index(self,path,data):
+        num_clusters = 4
+        data_without_ids = np.array([d[1:] for d in data])
+        # returns centroids and distortion
+        centroids, _ = kmeans(data_without_ids, num_clusters)
 
-        # Open the file from which to load data
-        with open(path, 'r') as data_file:
-            while True:
-                batch_ids, batch_data = self.load_next_batch(data_file, 5)
-                if batch_data.size == 0:
-                    break  # No more data to read
-                kmeans.partial_fit(batch_data)
+        # Assign each sample to a cluster
+        # returns cluster indices and distances
+        cluster_indices, _ = vq(data_without_ids, centroids)
+        print(cluster_indices == 1)
 
-                # Determine the nearest centroid for each point in the batch and save to the corresponding file
-                for id_, point in zip(batch_ids, batch_data):
-                    # nearest_centroid_idx = np.argmin(distance.cdist([point], kmeans.cluster_centers_, 'euclidean'))
-                    nearest_centroid_idx = np.argmax(self.calc_cosine_similarity([point], kmeans.cluster_centers_))
-                    file_name = f"centroid_{nearest_centroid_idx}.csv"
-                    self.append_to_file(file_name, id_, point)
+        for i in range(num_clusters):
+            # Extract data points that belong to cluster i
+            points_in_cluster = [d for j, d in enumerate(data) if cluster_indices[j] == i]
 
+            # Define a filename for the cluster
+            filename = f'cluster_{i}.csv'
 
-        # Get the final centroids
-        centroids = kmeans.cluster_centers_
+            # Save the data points to the file
+            np.savetxt(path+"/"+filename, points_in_cluster, delimiter=',', fmt='%f')
 
-        # Writing centroids to file
+            print(f'Cluster {i} saved to {filename}')
+
         centroids_file_name = path+"/centroids.csv"
         np.savetxt(centroids_file_name, centroids, delimiter=',')
 
-        # # Output the centroids
-        # print("Final centroids:")
-        # print(centroids)
 
     # Loading centroids from file
     def load_centroids(self,filename):
