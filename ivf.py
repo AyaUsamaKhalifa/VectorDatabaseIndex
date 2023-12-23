@@ -95,15 +95,16 @@ class ivf:
 
         # Load points from nearest centroid files and calculate distances
         neighbor_candidates = []
+
         for idx in nearest_centroids_indices:
-            points = self.load_points_from_file(path+f"cluster_{idx}.csv")
+            points = self.load_points_from_file(path + f"cluster_{idx}.csv")
             for point in points:
                 point_vector = np.array(point[1:])
-                dist = np.linalg.norm(np.array(point_vector) - np.array(query_point))
-                neighbor_candidates.append((point, dist))
+                similarity = self.calc_cosine_similarity(point_vector, np.array(query_point))
 
-        # Sort by distance and select the nearest k
+                neighbor_candidates.append((point, similarity))
+
+        # Sort by distance and select the highest similarity k
         neighbor_candidates.sort(key=lambda x: x[1])
-        nearest_neighbors = [x[0] for x in neighbor_candidates[:k]]
-
+        nearest_neighbors = [x[0] for x in neighbor_candidates[-k:]]
         return nearest_neighbors
