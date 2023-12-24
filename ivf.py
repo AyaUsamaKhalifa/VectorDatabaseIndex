@@ -8,6 +8,7 @@ import os
 import pickle
 import gc
 from sklearn import preprocessing
+import math
 
 
 class ivf:
@@ -65,6 +66,7 @@ class ivf:
 
      else:
       data_without_ids = np.array(list(data.values()))
+      num_clusters = math.ceil(math.sqrt(len(data_without_ids)))
 
       if(len(data_without_ids) > 1000000):
         kmeans = MiniBatchKMeans(num_clusters,random_state=0,batch_size=batch_size,max_iter=10,n_init="auto")
