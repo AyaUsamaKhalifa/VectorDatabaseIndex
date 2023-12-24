@@ -2,25 +2,22 @@
 
 import numpy as np
 import csv
-from sklearn.cluster import MiniBatchKMeans
-import os
+from sklearn.cluster import MiniBatchKMeans,KMeans
 from scipy.cluster.vq import whiten, kmeans, vq, kmeans2
+import os
+import pickle
+import gc
+from sklearn import preprocessing
 
 
 class ivf:
-    def load_next_batch(self,file_handle, batch_size):
-        batch_data = []
-        batch_ids = []
-        for _ in range(batch_size):
-            line = file_handle.readline()
-            if not line:
-                break
-            parts = line.strip().split(',')
-            id_ = parts[0]
-            vector = [float(x) for x in parts[1:]]
-            batch_data.append(vector)
-            batch_ids.append(id_)
-        return batch_ids, np.array(batch_data)
+    def load_next_batch(self, idx):
+        filename = "batched_data/"+f'data_{idx}.pkl'
+        if os.path.isfile(filename):
+          file = open(filename, "rb")
+          batch = pickle.load(file)
+          return batch
+        return False
 
     def append_to_file(self,file_name, id_, data_point):
         with open(file_name, 'a', newline='') as file:
@@ -28,83 +25,110 @@ class ivf:
             writer.writerow([id_] + data_point.tolist())
 
     def calc_cosine_similarity(self,vector1, vector2):
-      dot_product = np.dot(vector1, vector2.T)
-      norm_vector1 = np.linalg.norm(vector1)
-      norm_vector2 = np.linalg.norm(vector2)
-      similarity = dot_product / (norm_vector1 * norm_vector2)
-      return similarity
-      # dot_product = np.dot(vector1, vector2)
-      # norm_vector1 = np.linalg.norm(vector1)
-      # norm_vector2 = np.linalg.norm(vector2)
-      # similarity = dot_product / (norm_vector1 * norm_vector2)
-      # return similarity
+        dot_product = np.dot(vector1, vector2.T)
+        norm_vector1 = np.linalg.norm(vector1)
+        norm_vector2 = np.linalg.norm(vector2)
+        similarity = dot_product / (norm_vector1 * norm_vector2)
+        return 1-similarity
 
-    def cleanup(self):
+    def cleanup(self, path):
         # Get the list of all files and directories in the current working directory
-        path = '.'  # Current directory
+        path = './' + path  # Current directory
         for file in os.listdir(path):
-            if file.endswith('.csv'):
+            if file.endswith('.pkl'):
                 os.remove(os.path.join(path, file))
-                # print(f"Deleted file: {file}")
+                print(f"Deleted file: {file}")
 
-    def build_index(self,path,data):
-        num_clusters = 100
-        data_without_ids = np.array([d[1:] for d in data])
-        # returns centroids and distortion
-        centroids, _ = kmeans(data_without_ids, num_clusters)
+    def build_index(self,path,data = None):
+     batch_size = 100000
+     num_clusters = 4473
+     index = [{} for _ in range(num_clusters)]
+     centroids = None
+     if not data:
+      kmeans = MiniBatchKMeans(num_clusters,random_state=0,batch_size=batch_size,max_iter=10,n_init="auto")
+      idx = 0
+      while True:
+        batch_dict = self.load_next_batch(idx)
+        if (batch_dict == False):
+          break
+        batch_data = np.array(list(batch_dict.values()))
+        for i in range(0, len(batch_data), batch_size):
+          kmeans.partial_fit(preprocessing.normalize(batch_data[i:i+batch_size]))
+          cluster_indices = kmeans.labels_
+          for j,key in enumerate(cluster_indices):
+           index[key][(idx*len(batch_data))+j+i] = batch_dict[(idx*len(batch_data))+j+i]
+        del batch_dict
+        del batch_data
+        gc.collect()
+        idx += 1
+      centroids = kmeans.cluster_centers_
 
-        # Assign each sample to a cluster
-        # returns cluster indices and distances
-        cluster_indices, _ = vq(data_without_ids, centroids)
-        print(cluster_indices == 1)
+     else:
+      data_without_ids = np.array(list(data.values()))
 
-        for i in range(num_clusters):
-            # Extract data points that belong to cluster i
-            points_in_cluster = [d for j, d in enumerate(data) if cluster_indices[j] == i]
+      if(len(data_without_ids) > 1000000):
+        kmeans = MiniBatchKMeans(num_clusters,random_state=0,batch_size=batch_size,max_iter=10,n_init="auto")
+        for i in range(0, len(data_without_ids), batch_size):
+          kmeans.partial_fit(preprocessing.normalize(data_without_ids[i:i+batch_size]))
+          cluster_indices = kmeans.labels_
+          for j,key in enumerate(cluster_indices):
+           index[key][j+i] = data[j+i]
+        centroids = kmeans.cluster_centers_
 
-            # Define a filename for the cluster
-            filename = path+f'cluster_{i}.csv'
+      else:
+        centroids,cluster_indices = kmeans2(preprocessing.normalize(data_without_ids),num_clusters)
+        for i,key in enumerate(cluster_indices):
+           index[key][i] = data[i]
 
-            # Save the data points to the file
-            np.savetxt(filename, points_in_cluster, delimiter=',', fmt='%f')
+      del data
+      del data_without_ids
 
-            print(f'Cluster {i} saved to {filename}')
 
-        centroids_file_name = path+"centroids.csv"
-        np.savetxt(centroids_file_name, centroids, delimiter=',')
+     for i in range(num_clusters):
+        # Define a filename for the cluster
+        filename = path+f'cluster_{i}.pkl'
+        file = open(filename,"wb")
+        pickle.dump(index[i], file)
+        file.close()
+        print(f'Cluster {i} saved to {filename}')
+
+     centroids_file_name = path+"centroids.pkl"
+     file = open(centroids_file_name,"wb")
+     pickle.dump(centroids, file)
+     del index
+     del centroids
+     gc.collect()
+     file.close()
 
 
     # Loading centroids from file
     def load_centroids(self,filename):
-        centroids = np.loadtxt(filename, delimiter=',')
+        file = open(filename, "rb")
+        centroids = pickle.load(file)
+        file.close()
         return centroids
 
     def load_points_from_file(self,file_name):
-        points = []
-        with open(file_name, 'r') as file:
-            reader = csv.reader(file)
-            for row in reader:
-                points.append([float(x) for x in row])
+        file = open(file_name, "rb")
+        points = pickle.load(file)
+        file.close()
         return points
 
     def find_nearest_neighbors(self,path,query_point, centroids, k, n_centroids_to_consider=2):
-        # Calculate distances to centroids and get indices of the nearest ones
         centroid_distances = self.calc_cosine_similarity([query_point], centroids)[0]
-        # centroid_distances = distance.cdist([query_point], centroids, 'euclidean')[0]
-        nearest_centroids_indices = np.argsort(centroid_distances)[-n_centroids_to_consider:]
+        nearest_centroids_indices = np.argsort(centroid_distances)[:n_centroids_to_consider]
 
         # Load points from nearest centroid files and calculate distances
         neighbor_candidates = []
-
         for idx in nearest_centroids_indices:
-            points = self.load_points_from_file(path + f"cluster_{idx}.csv")
+            points = self.load_points_from_file(path+f"cluster_{idx}.pkl")
             for point in points:
-                point_vector = np.array(point[1:])
+                point_vector = points[point]
                 similarity = self.calc_cosine_similarity(point_vector, np.array(query_point))
+                neighbor_candidates.append((point,points[point], similarity))
 
-                neighbor_candidates.append((point, similarity))
+        # Sort by distance and select the nearest k
+        neighbor_candidates.sort(key=lambda x: x[2])
+        nearest_neighbors = [(x[0],x[1]) for x in neighbor_candidates[:k]]
 
-        # Sort by distance and select the highest similarity k
-        neighbor_candidates.sort(key=lambda x: x[1])
-        nearest_neighbors = [x[0] for x in neighbor_candidates[-k:]]
         return nearest_neighbors
