@@ -4,7 +4,7 @@ from ivf import ivf
 import math
 
 class VecDB:
-    def __init__(self, file_path = "db_10k", new_db = True) -> None:
+    def __init__(self, file_path = "", new_db = True) -> None:
         self.file_path = file_path
         self.ivf_instance = ivf()
         if new_db:
