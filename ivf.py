@@ -131,6 +131,6 @@ class ivf:
 
         # Sort by distance and select the nearest k
         neighbor_candidates.sort(key=lambda x: x[2])
-        nearest_neighbors = [(x[0],x[1]) for x in neighbor_candidates[:k]]
+        nearest_neighbors = [x[0] for x in neighbor_candidates[:k]]
 
         return nearest_neighbors
