@@ -14,6 +14,12 @@ class VecDB:
                 pass
 
     def insert_records(self, rows: List[Dict[int, Annotated[List[float], 70]]] = None):
+        data = rows
+        if type(rows) != dict:
+            data = {}
+            for row in rows:
+                data[row['id']] = row['embed']
+                
         self.ivf_instance.cleanup(self.file_path)
         self.ivf_instance.build_index(self.file_path,rows)
 
