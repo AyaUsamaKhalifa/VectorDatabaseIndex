@@ -19,9 +19,9 @@ class VecDB:
             data = {}
             for row in rows:
                 data[row['id']] = row['embed']
-                
+
         self.ivf_instance.cleanup(self.file_path)
-        self.ivf_instance.build_index(self.file_path,rows)
+        self.ivf_instance.build_index(self.file_path,data)
 
 
     def retrive(self, query: Annotated[List[float], 70], top_k = 5):
