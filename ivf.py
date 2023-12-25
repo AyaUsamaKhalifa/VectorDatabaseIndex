@@ -42,7 +42,7 @@ class ivf:
 
     def build_index(self,path,data = None):
      batch_size = 100000
-     num_clusters = 1000
+     num_clusters = 100
      index = [{} for _ in range(num_clusters)]
      centroids = None
      if not data:
